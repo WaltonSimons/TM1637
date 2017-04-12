@@ -30,11 +30,16 @@ HEXLETTERS = {
     'r': 0x50,
     'S': 0x6d,
     'U': 0x3e,
+    'V': 0x3e,
     'Y': 0x66,
     'Z': 0x5b,
     ' ': 0x00,
     'T1': 0x07,
     'T2': 0x31,
+    'M1': 0x33,
+    'M2': 0x27,
+    'W1': 0x3c,
+    'W2': 0x1e,
 }
 
 ADDR_AUTO = 0x40
@@ -50,7 +55,7 @@ HIGH = GPIO.HIGH
 
 
 class TM1637:
-    __double_point = False
+    __doublepoint = False
     __clk_pin = 0
     __data_pin = 0
     __brightness = BRIGHT_DEFAULT
@@ -65,13 +70,13 @@ class TM1637:
 
     def clear(self):
         b = self.__brightness
-        point = self.__double_point
+        point = self.__doublepoint
         self.__brightness = 0
-        self.__double_point = False
+        self.__doublepoint = False
         data = [' ', ' ', ' ', ' ']
         self.set_values(data)
         self.__brightness = b
-        self.__double_point = point
+        self.__doublepoint = point
 
     def set_values(self, data):
         for i in range(4):
@@ -89,8 +94,36 @@ class TM1637:
         self.write_byte(0x88 + self.__brightness)
         self.stop()
 
+    def set_value(self, value, index):
+        if index not in range(4):
+            pass
+
+        self.__current_data[index] = value;
+
+        self.start()
+        self.write_byte(ADDR_FIXED)
+        self.stop()
+        self.start()
+        self.write_byte(STARTADDR | index)
+        self.write_byte(self.encode(value))
+        self.stop()
+        self.start()
+        self.write_byte(0x88 + self.__brightness)
+        self.stop()
+
+    def set_brightness(self, brightness):
+        if brightness not in range(8):
+            pass
+
+        self.__brightness = brightness
+        self.set_values(self.__current_data)
+
+    def set_doublepoint(self, value):
+        self.__doublepoint = value
+        self.set_values(self.__current_data)
+
     def encode(self, data):
-        point = 0x80 if self.__double_point else 0x00;
+        point = 0x80 if self.__doublepoint else 0x00;
 
         if data == 0x7F:
             data = 0
@@ -134,3 +167,7 @@ class TM1637:
         GPIO.output(self.__data_pin, LOW)
         GPIO.output(self.__clk_pin, HIGH)
         GPIO.output(self.__data_pin, HIGH)
+
+    def cleanup(self):
+        GPIO.cleanup(self.__clk_pin)
+        GPIO.cleanup(self.__data_pin)
